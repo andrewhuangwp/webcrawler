@@ -48,7 +48,7 @@ def parseResponse(resp):
     result = {'Header': header, 'Status': status, 'Body': body}
 
     # Parse all items of header.
-    for i in range(len(header)):
+    for i in range(1, len(header)):
       item = header[i].split(": ")
       result[item[0]] = item[1]
     
