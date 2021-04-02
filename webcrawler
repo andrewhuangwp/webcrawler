@@ -57,8 +57,8 @@ def parseResponse(resp):
       cookie = result['Set-Cookie']
       cookie_split = cookie.split("; ")
       result['Cookie-String'] = cookie_split[0]
-      cookie_object = cookie_split[0].split("=")
-      result['Cookie-Object'] = {cookie_object[0]: cookie_object[1]}
+      cookie_data = cookie_split[0].split("=")
+      result['Cookie-Data'] = {cookie_data[0]: cookie_data[1]}
     
     return result
 
@@ -77,8 +77,8 @@ while login_parsed['Status'] != '200':
   login_resp = sock.recv(50000).decode()
   login_parsed = parseResponse(login_resp)
 
-csrf = login_parsed['Cookies-Object']['csrftoken']
-session = login_parsed['Cookies-Object']['sessionid']
+csrf = login_parsed['Cookie-Data']['csrftoken']
+session = login_parsed['Cookie-Data']['sessionid']
 post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + csrf  + '&next=/fakebook/'
 sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
                 'Host: webcrawler-site.ccs.neu.edu\r\n'
@@ -97,7 +97,7 @@ while post_parsed['Status'] != '302':
                 + post_params + '\r\n\r\n')
   post_resp = sock.recv(50000)
   post_parsed = parseResponse(post_resp)
-session = post_parsed['Cookies-Object']['sessionid']
+session = post_parsed['Cookie-Data']['sessionid']
 
 def HTTPGet(path):
   cookie = "csrftoken=%s; sessionid=%s" % (csrf, session)
@@ -108,11 +108,11 @@ def HTTPGet(path):
   new_socket.connect(('webcrawler-site.ccs.neu.edu', 80))
   new_socket.send('Get %s HTTP/1.1\nHost: webcrawler-site.ccs.neu.edu\n%s\r\n\r\n' % (path, cookie))
 
-  resp = s.recv(10000000)
+  resp = new_socket.recv(10000000)
   parsed_resp = parseResponse(resp)
 
-  s.shutdown(1)
-  s.close()
+  new_socket.shutdown(1)
+  new_socket.close()
   return parsed_resp
 
 home_url = urlparser.urlparse(post_parsed['Location'])
