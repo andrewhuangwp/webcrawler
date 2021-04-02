@@ -9,11 +9,14 @@ from html.parser import HTMLParser
 visited = []
 queue = []
 flags = []
+csrf = None
+session = None
 
 # Handle parsing HTML. Example referenced from html.parser documentation.
 class WebCrawlerHTMLParser(HTMLParser):
   def handle_starttag(self, tag, attrs):
-    print()
+    for attr in attrs:
+      print(attr)
 
   def handle_endtag(self, tag):
     print()
@@ -31,15 +34,101 @@ username = sys.argv[1]
 password = sys.argv[2]
 
 # Parse HTTP Responses.
+# TODO 
 def parseResponse(resp):
     resp = resp.rstrip()
-    data = resp.split("\r\n\r\n") 
-    print(data)
+    data = resp.split("\r\n\r\n")
+    # Response header is first item of response.
+    header = data[0].split("\r\n")
+    # Response status is after first space of header.
+    status = header[0].split(" ")[1]
+    body = ""
+    if len(data) >= 2:
+      body = data[1]
+    result = {'Header': header, 'Status': status, 'Body': body}
+
+    # Parse all items of header.
+    for i in range(len(header)):
+      item = header[i].split(": ")
+      result[item[0]] = item[1]
+    
+    # Handle cookies.
+    if 'Set-Cookie' in result.keys():
+      cookie = result['Set-Cookie']
+      cookie_split = cookie.split("; ")
+      result['Cookie-String'] = cookie_split[0]
+      cookie_object = cookie_split[0].split("=")
+      result['Cookie-Object'] = {cookie_object[0]: cookie_object[1]}
+    
+    return result
 
 # Connect to socket and login.
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.settimeout(0.30)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.connect(('webcrawler-site.ccs.neu.edu', 80))
 sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
-
 login_resp = sock.recv(50000).decode()
-parseResponse(login_resp)
+login_parsed = parseResponse(login_resp)
+
+while login_parsed['Status'] != '200':
+  sock.connect(('webcrawler-site.ccs.neu.edu', 80))
+  sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+  login_resp = sock.recv(50000).decode()
+  login_parsed = parseResponse(login_resp)
+
+csrf = login_parsed['Cookies-Object']['csrftoken']
+session = login_parsed['Cookies-Object']['sessionid']
+post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + csrf  + '&next=/fakebook/'
+sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
+                'Host: webcrawler-site.ccs.neu.edu\r\n'
+                'Cookie: ' + login_parsed['Cookie_string'] + '\r\n' 
+                'Content-Type: application/x-www-form-urlencoded\r\n'
+                'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
+                + post_params + '\r\n\r\n')
+post_resp = sock.recv(50000)
+post_parsed = parseResponse(post_resp)
+while post_parsed['Status'] != '302':
+  sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
+                  'Host: webcrawler-site.ccs.neu.edu\r\n'
+                  'Cookie: ' + login_parsed['Cookie_string'] + '\r\n' 
+                  'Content-Type: application/x-www-form-urlencoded\r\n'
+                  'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
+                + post_params + '\r\n\r\n')
+  post_resp = sock.recv(50000)
+  post_parsed = parseResponse(post_resp)
+session = post_parsed['Cookies-Object']['sessionid']
+
+def HTTPGet(path):
+  cookie = "csrftoken=%s; sessionid=%s" % (csrf, session)
+
+  new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  new_socket.settimeout(0.30)
+  new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  new_socket.connect(('webcrawler-site.ccs.neu.edu', 80))
+  new_socket.send('Get %s HTTP/1.1\nHost: webcrawler-site.ccs.neu.edu\n%s\r\n\r\n' % (path, cookie))
+
+  resp = s.recv(10000000)
+  parsed_resp = parseResponse(resp)
+
+  s.shutdown(1)
+  s.close()
+  return parsed_resp
+
+home_url = urlparser.urlparse(post_parsed['Location'])
+home_path = home_url.path
+if home_path == "":
+    home_path = "/"
+
+if home_url.query:
+    home_path += '?' + home_url.query
+
+after_login = HTTPGet(home_path)
+visited.append(home_path)
+parser.feed(after_login['Body'])
+
+def crawl():
+  page = queue.pop()
+
+
+
