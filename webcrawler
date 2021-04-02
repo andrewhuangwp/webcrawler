@@ -23,7 +23,7 @@ class WebCrawlerHTMLParser(HTMLParser):
 parser = WebCrawlerHTMLParser()
 
 # Handle command line arguments.
-if len(sys.argv) != 2:
+if len(sys.argv) != 3:
   print("Command line arguments must be only username and password.")
   sys.exit(1)
 
