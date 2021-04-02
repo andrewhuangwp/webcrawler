@@ -1,7 +1,7 @@
 #!/usr/bin/python3 -u
 
 import socket
-import urlparse
+import urllib.parse as urlparser
 import sys
 from html.parser import HTMLParser
 
@@ -13,10 +13,13 @@ flags = []
 # Handle parsing HTML. Example referenced from html.parser documentation.
 class WebCrawlerHTMLParser(HTMLParser):
   def handle_starttag(self, tag, attrs):
+    print()
 
   def handle_endtag(self, tag):
+    print()
 
   def handle_data(self, data):
+    print()
 parser = WebCrawlerHTMLParser()
 
 # Handle command line arguments.
