@@ -69,7 +69,7 @@ sock.settimeout(0.30)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.connect(('webcrawler-site.ccs.neu.edu', 80))
 sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
-login_resp = sock.recv(50000).decode()
+login_resp = sock.recv(500000).decode()
 login_parsed = parseResponse(login_resp)
 
 while login_parsed['Status'] != '200':
