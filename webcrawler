@@ -32,7 +32,6 @@ password = sys.argv[2]
 
 # Parse HTTP Responses.
 def parseResponse(resp):
-    responseTable = {}
     resp = resp.rstrip()
     data = resp.split("\r\n\r\n") 
     print(data)
@@ -40,7 +39,7 @@ def parseResponse(resp):
 # Connect to socket and login.
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n')
+sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
 
-login_resp = sock.recv(50000)
+login_resp = sock.recv(50000).decode()
 parseResponse(login_resp)
