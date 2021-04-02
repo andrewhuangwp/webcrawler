@@ -1,0 +1,43 @@
+#!/usr/bin/python3 -u
+
+import socket
+import urlparse
+import sys
+from html.parser import HTMLParser
+
+# Global variables
+visited = []
+queue = []
+flags = []
+
+# Handle parsing HTML. Example referenced from html.parser documentation.
+class WebCrawlerHTMLParser(HTMLParser):
+  def handle_starttag(self, tag, attrs):
+
+  def handle_endtag(self, tag):
+
+  def handle_data(self, data):
+parser = WebCrawlerHTMLParser()
+
+# Handle command line arguments.
+if len(sys.argv) != 2:
+  print("Command line argument must be only username and password.")
+  sys.exit(1)
+
+username = sys.argv[1]
+password = sys.argv[2]
+
+# Parse HTTP Responses.
+def parseResponse(resp):
+    responseTable = {}
+    resp = resp.rstrip()
+    data = resp.split("\r\n\r\n") 
+    print(data)
+
+# Connect to socket and login.
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.connect(('webcrawler-site.ccs.neu.edu', 80))
+sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n')
+
+login_resp = sock.recv(50000)
+parseResponse(login_resp)
