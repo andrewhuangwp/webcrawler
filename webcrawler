@@ -24,7 +24,7 @@ parser = WebCrawlerHTMLParser()
 
 # Handle command line arguments.
 if len(sys.argv) != 2:
-  print("Command line argument must be only username and password.")
+  print("Command line arguments must be only username and password.")
   sys.exit(1)
 
 username = sys.argv[1]
