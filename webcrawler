@@ -81,7 +81,7 @@ csrf = login_parsed['Cookie-Data']['csrftoken']
 post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + csrf  + '&next=/fakebook/'
 sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
                 'Host: webcrawler-site.ccs.neu.edu\r\n'
-                'Cookie: ' + login_parsed['Cookie_string'] + '\r\n' 
+                'Cookie: ' + login_parsed['Cookie-String'] + '\r\n' 
                 'Content-Type: application/x-www-form-urlencoded\r\n'
                 'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
                 + post_params + '\r\n\r\n')
@@ -90,7 +90,7 @@ post_parsed = parseResponse(post_resp)
 while post_parsed['Status'] != '302':
   sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
                   'Host: webcrawler-site.ccs.neu.edu\r\n'
-                  'Cookie: ' + login_parsed['Cookie_string'] + '\r\n' 
+                  'Cookie: ' + login_parsed['Cookie-String'] + '\r\n' 
                   'Content-Type: application/x-www-form-urlencoded\r\n'
                   'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
                 + post_params + '\r\n\r\n')
