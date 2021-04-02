@@ -13,28 +13,34 @@ csrf = None
 session = None
 
 # Handle parsing HTML. Example referenced from html.parser documentation.
+
+
 class WebCrawlerHTMLParser(HTMLParser):
-  def handle_starttag(self, tag, attrs):
-    for attr in attrs:
-      print(attr)
+    def handle_starttag(self, tag, attrs):
+        for attr in attrs:
+            print(attr)
 
-  def handle_endtag(self, tag):
-    print()
+    def handle_endtag(self, tag):
+        print()
 
-  def handle_data(self, data):
-    print()
+    def handle_data(self, data):
+        print()
+
+
 parser = WebCrawlerHTMLParser()
 
 # Handle command line arguments.
 if len(sys.argv) != 3:
-  print("Command line arguments must be only username and password.")
-  sys.exit(1)
+    print("Command line arguments must be only username and password.")
+    sys.exit(1)
 
 username = sys.argv[1]
 password = sys.argv[2]
 
 # Parse HTTP Responses.
-# TODO 
+# TODO
+
+
 def parseResponse(resp):
     resp = resp.rstrip()
     data = resp.split("\r\n\r\n")
@@ -44,23 +50,24 @@ def parseResponse(resp):
     status = header[0].split(" ")[1]
     body = ""
     if len(data) >= 2:
-      body = data[1]
+        body = data[1]
     result = {'Header': header, 'Status': status, 'Body': body}
 
     # Parse all items of header.
     for i in range(1, len(header)):
-      item = header[i].split(": ")
-      result[item[0]] = item[1]
-    
+        item = header[i].split(": ")
+        result[item[0]] = item[1]
+
     # Handle cookies.
     if 'Set-Cookie' in result.keys():
-      cookie = result['Set-Cookie']
-      cookie_split = cookie.split("; ")
-      result['Cookie-String'] = cookie_split[0]
-      cookie_data = cookie_split[0].split("=")
-      result['Cookie-Data'] = {cookie_data[0]: cookie_data[1]}
-    
+        cookie = result['Set-Cookie']
+        cookie_split = cookie.split("; ")
+        result['Cookie-String'] = cookie_split[0]
+        cookie_data = cookie_split[0].split("=")
+        result['Cookie-Data'] = {cookie_data[0]: cookie_data[1]}
+
     return result
+
 
 # Connect to socket and login.
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -72,48 +79,47 @@ login_resp = sock.recv(500000).decode()
 login_parsed = parseResponse(login_resp)
 
 while login_parsed['Status'] != '200':
-  sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-  sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
-  login_resp = sock.recv(50000).decode()
-  login_parsed = parseResponse(login_resp)
+    sock.connect(('webcrawler-site.ccs.neu.edu', 80))
+    sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+    login_resp = sock.recv(50000).decode()
+    login_parsed = parseResponse(login_resp)
 
 csrf = login_parsed['Cookie-Data']['csrftoken']
-post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + csrf  + '&next=/fakebook/'
-sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
-                'Host: webcrawler-site.ccs.neu.edu\r\n'
-                'Cookie: ' + login_parsed['Cookie-String'] + '\r\n' 
-                'Content-Type: application/x-www-form-urlencoded\r\n'
-                'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
-                + post_params + '\r\n\r\n')
-post_resp = sock.recv(50000)
+post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + csrf + '&next=/fakebook/'
+post_msg = 'POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
+'Host: webcrawler-site.ccs.neu.edu\r\n'
+'Cookie: ' + login_parsed['Cookie-String'] + '\r\n'
+'Content-Type: application/x-www-form-urlencoded\r\n'
+'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
++ post_params + '\r\n\r\n'
+sock.send(post_msg.encode())
+post_resp = sock.recv(50000).decode()
 post_parsed = parseResponse(post_resp)
 while post_parsed['Status'] != '302':
-  sock.send('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
-                  'Host: webcrawler-site.ccs.neu.edu\r\n'
-                  'Cookie: ' + login_parsed['Cookie-String'] + '\r\n' 
-                  'Content-Type: application/x-www-form-urlencoded\r\n'
-                  'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
-                + post_params + '\r\n\r\n')
-  post_resp = sock.recv(50000)
-  post_parsed = parseResponse(post_resp)
+    sock.send(post_msg.encode())
+    post_resp = sock.recv(50000).decode()
+    post_parsed = parseResponse(post_resp)
 csrf = post_parsed['Cookie-Data']['csrftoken']
 session = post_parsed['Cookie-Data']['sessionid']
 
+
 def HTTPGet(path):
-  cookie = "csrftoken=%s; sessionid=%s" % (csrf, session)
+    cookie = "csrftoken=%s; sessionid=%s" % (csrf, session)
 
-  new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  new_socket.settimeout(0.30)
-  new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-  new_socket.connect(('webcrawler-site.ccs.neu.edu', 80))
-  new_socket.send('Get %s HTTP/1.1\nHost: webcrawler-site.ccs.neu.edu\n%s\r\n\r\n' % (path, cookie))
+    new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    new_socket.settimeout(0.30)
+    new_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    new_socket.connect(('webcrawler-site.ccs.neu.edu', 80))
+    get_msg = 'Get %s HTTP/1.1\nHost: webcrawler-site.ccs.neu.edu\n%s\r\n\r\n' % (path, cookie)
+    new_socket.send(get_msg.encode())
 
-  resp = new_socket.recv(10000000)
-  parsed_resp = parseResponse(resp)
+    resp = new_socket.recv(10000000).decode()
+    parsed_resp = parseResponse(resp)
 
-  new_socket.shutdown(1)
-  new_socket.close()
-  return parsed_resp
+    new_socket.shutdown(1)
+    new_socket.close()
+    return parsed_resp
+
 
 home_url = urlparser.urlparse(post_parsed['Location'])
 home_path = home_url.path
@@ -127,8 +133,6 @@ after_login = HTTPGet(home_path)
 visited.append(home_path)
 parser.feed(after_login['Body'])
 
+
 def crawl():
-  page = queue.pop()
-
-
-
+    page = queue.pop()
