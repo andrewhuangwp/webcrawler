@@ -65,6 +65,7 @@ def parseResponse(resp):
         result['Cookie-String'] = cookie_split[0]
         cookie_data = cookie_split[0].split("=")
         result['Cookie-Data'] = {cookie_data[0]: cookie_data[1]}
+    print(result)
 
     return result
 
