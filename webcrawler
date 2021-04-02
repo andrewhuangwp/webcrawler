@@ -50,24 +50,33 @@ def parseResponse(resp):
     status = header[0].split(" ")[1]
     body = ""
     if len(data) >= 2:
-        body = data[1]
+      body = data[1]
     result = {'Header': header, 'Status': status, 'Body': body}
 
     # Parse all items of header.
     for i in range(1, len(header)):
-        item = header[i].split(": ")
+      item = header[i].split(": ")
+      # There may be multiple set cookies.
+      if item[0] in result:
+        result[item[0]] += ' | ' + item[1]
+      else:
         result[item[0]] = item[1]
-
+    
     # Handle cookies.
     if 'Set-Cookie' in result.keys():
-        cookie = result['Set-Cookie']
+      set_cookie = result['Set-Cookie']
+      cookies = set_cookie.split(' | ')
+      cookie_data = {}
+      for cookie in cookies:
         cookie_split = cookie.split("; ")
-        result['Cookie-String'] = cookie_split[0]
-        cookie_data = cookie_split[0].split("=")
-        result['Cookie-Data'] = {cookie_data[0]: cookie_data[1]}
-    print(result)
-
-    return result
+        if 'Cookie-String' in result:
+          result['Cookie-String'] += "; " + cookie_split[0]
+        else:
+          result['Cookie-String'] = cookie_split[0]
+        data_split = cookie_split[0].split("=")
+        cookie_data[data_split[0]] = data_split[1]
+      result['Cookie-Data'] = cookie_data
+      print(result)
 
 
 # Connect to socket and login.
