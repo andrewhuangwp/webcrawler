@@ -17,15 +17,15 @@ session = None
 
 class WebCrawlerHTMLParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
+        print("start tag: ", tag)
         for attr in attrs:
-            print(attr[0])
-            print(attr[1])
+            print("     attr:", attr)
 
     def handle_endtag(self, tag):
-        print()
+        print("end tag: " + tag)
 
     def handle_data(self, data):
-        print()
+        print("data: ", data)
 
 
 parser = WebCrawlerHTMLParser()
@@ -144,7 +144,6 @@ if home_url.query:
 after_login = HTTPGet(home_path)
 visited.append(home_path)
 parser.feed(after_login['Body'])
-print("reached")
 
 
 def crawl():
