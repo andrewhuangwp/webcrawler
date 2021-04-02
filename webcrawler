@@ -78,6 +78,8 @@ def parseResponse(resp):
       result['Cookie-Data'] = cookie_data
       print(result)
 
+    return result
+
 
 # Connect to socket and login.
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
