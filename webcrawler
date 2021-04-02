@@ -144,6 +144,7 @@ if home_url.query:
 after_login = HTTPGet(home_path)
 visited.append(home_path)
 parser.feed(after_login['Body'])
+print("reached")
 
 
 def crawl():
