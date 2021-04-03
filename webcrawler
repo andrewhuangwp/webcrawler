@@ -1,12 +1,12 @@
 #!/usr/bin/python3 -u
 
 import socket
-import urllib.parse as urlparser
 import sys
 import time
 from html.parser import HTMLParser
 
-# Global variables
+# Global variables. Visited keeps track of pages visited already, queue is pages to be visited.
+# csrf is the csrf token, middleware is the middleware token used for login, session is session id.
 visited = []
 queue = []
 flags = []
@@ -15,8 +15,6 @@ middleware = None
 session = None
 
 # Handle parsing HTML. Example referenced from html.parser documentation.
-
-
 class WebCrawlerHTMLParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         global middleware
@@ -36,9 +34,8 @@ class WebCrawlerHTMLParser(HTMLParser):
 
     def handle_data(self, data):
       if "FLAG:" in data:
-        if data[6:] not in flags:
-          print(data[6:])
-          flags.append(data[6:])
+        print(data[6:])
+        flags.append(data[6:])
 
 parser = WebCrawlerHTMLParser()
 
@@ -51,9 +48,6 @@ username = sys.argv[1]
 password = sys.argv[2]
 
 # Parse HTTP Responses.
-# TODO
-
-
 def parseResponse(resp):
     resp = resp.rstrip()
     data = resp.split("\r\n\r\n")
@@ -98,14 +92,14 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.settimeout(1)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-sock.send('GET /accounts/login/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
 login_resp = sock.recv(500000).decode()
 login_parsed = parseResponse(login_resp)
 
-
+# Keep requesting until status 200.
 while login_parsed['Status'] != '200':
     sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-    sock.send('GET /accounts/login/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+    sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
     login_resp = sock.recv(50000).decode()
     login_parsed = parseResponse(login_resp)
 
@@ -113,21 +107,26 @@ csrf = login_parsed['Cookie-Data']['csrftoken']
 parser.feed(login_parsed['Body'])
 
 post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + middleware + '&next=/fakebook/'
-post_msg = ('POST /accounts/login/ HTTP/1.1\r\n'
+post_msg = ('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
             'Host: webcrawler-site.ccs.neu.edu\r\n'
             'Cookie: ' + login_parsed['Cookie-String'] + '\r\n'
             'Content-Type: application/x-www-form-urlencoded\r\n'
             'Content-Length: ' + str(len(post_params)) + '\r\n\r\n'
             + post_params)
+
 sock.send(post_msg.encode())
 post_resp = sock.recv(500000).decode()
 post_parsed = parseResponse(post_resp)
+# Keep posting until get status 302.
+while post_parsed['Status'] != '302':
+  sock.send(post_msg.encode())
+  post_resp = sock.recv(500000).decode()
+  post_parsed = parseResponse(post_resp)
 
 csrf = post_parsed['Cookie-Data']['csrftoken']
 session = post_parsed['Cookie-Data']['sessionid']
 
-
-
+# Closes and reopens the global socket to get and post request login.
 def login():
     global csrf
     global sock
@@ -137,20 +136,19 @@ def login():
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-    sock.send('GET /accounts/login/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+    sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
     login_resp = sock.recv(500000).decode()
     login_parsed = parseResponse(login_resp)
 
     while login_parsed['Status'] != '200':
         sock.connect(('webcrawler-site.ccs.neu.edu', 80))
-        sock.send(
-            'GET /accounts/login/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
+        sock.send('GET /accounts/login/?next=/fakebook/ HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\n\r\n'.encode())
         login_resp = sock.recv(50000).decode()
         login_parsed = parseResponse(login_resp)
 
     csrf = login_parsed['Cookie-Data']['csrftoken']
     post_params = 'username=' + username + '&password=' + password + '&csrfmiddlewaretoken=' + middleware + '&next=/fakebook/'
-    post_msg = ('POST /accounts/login/ HTTP/1.1\r\n'
+    post_msg = ('POST /accounts/login/?next=/fakebook/ HTTP/1.1\r\n'
                 'Host: webcrawler-site.ccs.neu.edu\r\n'
                 'Cookie: ' + login_parsed['Cookie-String'] + '\r\n'
                 'Content-Type: application/x-www-form-urlencoded\r\n'
@@ -166,7 +164,7 @@ def login():
     csrf = post_parsed['Cookie-Data']['csrftoken']
     session = post_parsed['Cookie-Data']['sessionid']
 
-
+# Performs a HTTP GET request and returns the parsed response.
 def HTTPGet(path):
     cookie = "csrftoken=%s; sessionid=%s" % (csrf, session)
 
@@ -176,23 +174,18 @@ def HTTPGet(path):
     new_socket.connect(('webcrawler-site.ccs.neu.edu', 80))
     get_msg = 'GET %s HTTP/1.1\r\nHost: webcrawler-site.ccs.neu.edu\r\nCookie: %s\r\n\r\n' % (path, cookie)
     new_socket.send(get_msg.encode())
-    time.sleep(.05)
 
     resp = new_socket.recv(10000000).decode()
 
+    # Relogin if response is empty.
     check = resp.split('\r\n')
     if check[0] == '0' or len(resp) == 0:
         while check[0] == '0' or len(resp) == 0:
             new_socket.close()
-
             new_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             login()
-
             sock.send(get_msg.encode())
-            time.sleep(.05)            
-
             resp = sock.recv(10000000).decode()
-
             check = resp.split('\r\n')  
     parsed_resp = parseResponse(resp)
 
@@ -206,6 +199,7 @@ after_login = HTTPGet(home_path)
 visited.append(home_path)
 parser.feed(after_login['Body'])
 
+# Crawl to the next page in the queue.
 def crawl():
     page = queue.pop()
 
@@ -238,6 +232,9 @@ def crawl():
 
 while len(flags) < 5 and len(queue) > 0:
   crawl()
+
+sock.close()
+
 
 
 
